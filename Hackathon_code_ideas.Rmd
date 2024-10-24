@@ -1,0 +1,218 @@
+---
+title: "Hackathon_Code_Ideas"
+author: "Ashley Pritchard"
+date: "2024-10-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Import libraries
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+```
+
+
+# Import management data
+```{r}
+management_url = 'https://www.dropbox.com/scl/fi/p7wuds6crco6s08q17z6f/2024_TAPS_management.xlsx?rlkey=mfuko6ha8myosc6py0jg7npx9&st=t2h4jkek&dl=1'
+
+# Import planting date
+temp_file <- tempfile(fileext = ".xlsx")
+download.file(management_url, temp_file, mode = "wb")
+planting_date = read_excel(temp_file, sheet="Planting date", skip=1, .name_repair = "unique_quiet")
+colnames(planting_date) = c("Farm_ID", "Planting_Date", "Company_Hybrid", "Seeding_Rate")
+
+# Import irrigation amounts and transpose
+irrigation_amounts = read_excel(temp_file, sheet="Irrigation amounts", skip=1, .name_repair = "unique_quiet")
+colnames(irrigation_amounts) = c("Team","4/25/2024","5/23/2024","6/11/2024","6/18/2024","6/25/2024","7/2/2024","7/9/2024","7/10/2024","7/16/2024","7/17/2024","7/23/2024","7/23/2024","7/30/2024","8/6/2024","8/7/2024","8/13/2024","8/20/2024","8/27/2024","9/3/2024","9/10/2024","Total")
+irrigation_amounts_long = irrigation_amounts%>%pivot_longer(cols=c("4/25/2024","5/23/2024","6/11/2024","6/18/2024","6/25/2024","7/2/2024","7/9/2024","7/10/2024","7/16/2024","7/17/2024","7/23/2024","7/23/2024","7/30/2024","8/6/2024","8/7/2024","8/13/2024","8/20/2024","8/27/2024","9/3/2024","9/10/2024"), names_to="Day", values_to="Amount")
+irrigation_amounts_long$Date = as.Date(irrigation_amounts_long$Day, tryFormats="%m/%d/%Y")
+```
+# Import sensor data
+```{r}
+# Define function to read in team data for a given team and given sensor
+import_team_sensor_data = function(team_num, sensor_url, data_start, sensor_cols, xlsx_TF){
+  sheet_name = capture.output(cat("Team #", team_num, " Data", sep=""))
+  if(xlsx_TF == TRUE){
+    temp_file <- tempfile(fileext = ".xlsx")
+  } else {
+    temp_file <- tempfile(fileext = ".xls")
+  }
+  download.file(sensor_url, temp_file, mode = "wb")
+  team_sensor_data = read_excel(temp_file, sheet=sheet_name, skip=(data_start-2), .name_repair = "unique_quiet")
+  # Define column names
+  colnames(team_sensor_data) = sensor_cols
+  # Add summarization level and date
+  team_sensor_data$Summarization_level = "Continuous"
+  team_sensor_data$Date = format(team_sensor_data$Timestamp, "%m/%d/%Y")
+  return(team_sensor_data)
+}
+
+# Define function to find daily averages
+daily_sensor_averages = function(team_sensor_data){
+  # Group by day and average
+  daily_averages = team_sensor_data %>% group_by(Date) %>% summarise_if(is.numeric, mean, na.rm = TRUE)
+  # Add summarization level and time stamp
+  daily_averages$Summarization_level = "Daily_Average"
+  daily_averages$Timestamp = as.POSIXct(daily_averages$Date, format="%m/%d/%Y")
+  # Re order columns to match original order
+  n_cols = dim(daily_averages)[2]
+  final_data = daily_averages[,c(n_cols, 2:(n_cols-1), 1)]
+  return(final_data)
+}
+
+# Define function to find weekly averages
+irrigation_data_dates = unique(irrigation_amounts_long$Date)
+weekly_sensor_averages = function(daily_data)
+{
+  i = 1
+  for(day in irrigation_data_dates){
+    # Define start day
+    start_day = day - days(6)
+    # Filter data
+    day_data = daily_data[daily_data$Timestamp <= day & daily_data$Timestamp >= start_day,]
+    # Calculate averages
+    averages = day_data %>% summarise_if(is.numeric, mean, na.rm = TRUE)
+    # Define timestamp
+    averages$Timestamp = as.POSIXct(day, format="%m/%d/%Y")
+    # Re order columns to match original order
+    n_cols = dim(averages)[2]
+    averages_ordered = averages[,c(n_cols, 1:(n_cols-1))]
+    # Define summarization level and date
+    averages_ordered$Summarization_level = "Weekly_Average"
+    averages_ordered$Date = day
+    print(averages_ordered)
+    # If i=1, store as new variable, if i>1, rbind
+    if(i==1){
+      average_results = averages_ordered
+    } else {
+      average_results = rbind(average_results, averages_ordered)
+    }
+    i = i + 1
+  }
+  return(average_results)
+}
+
+# Define function to find weekly averages
+irrigation_data_dates = as.character(unique(irrigation_amounts_long$Date))
+weekly_sensor_averages = function(daily_data)
+{
+  i = 1
+  for(end_day in irrigation_data_dates){
+    # Define start and end days
+    end_day = as.Date(end_day, tryFormats = "%Y-%m-%d")
+    start_day = end_day - days(6)
+    # Filter data
+    day_data = daily_data[daily_data$Timestamp <= end_day & daily_data$Timestamp >= start_day,]
+    # Calculate averages
+    averages = day_data %>% summarise_if(is.numeric, mean, na.rm = TRUE)
+    # Define timestamp
+    averages$Timestamp = as.POSIXct(day, format="%m/%d/%Y")
+    # Re order columns to match original order
+    n_cols = dim(averages)[2]
+    averages_ordered = averages[,c(n_cols, 1:(n_cols-1))]
+    # Define summarization level and date
+    averages_ordered$Summarization_level = "Weekly_Average"
+    averages_ordered$Date = end_day
+    print(averages_ordered)
+    # If i=1, store as new variable, if i>1, rbind
+    if(i==1){
+      average_results = averages_ordered
+    } else {
+      average_results = rbind(average_results, averages_ordered)
+    }
+    i = i + 1
+  }
+  return(average_results)
+}
+
+# Define function to import, calculate averages, and combine across teams
+import_sensor_data = function(sensor_teams, sensor_url, sensor_start, sensor_cols, xlsx_TF){
+  i = 1
+  for(team in sensor_teams)
+  {
+    ts_data_cont = import_team_sensor_data(team, sensor_url, sensor_start, sensor_cols, xlsx_TF)
+    ts_daily_data = daily_sensor_averages(ts_data_cont)
+    ts_weekly_data = ts_daily_data
+    
+    ts_data_cont_common_cols = ts_data_cont[,colnames(ts_daily_data)]
+    
+    ts_data = rbind(ts_data_cont_common_cols, ts_daily_data, ts_weekly_data)
+    ts_data$Team = team
+    
+    if(i==1){
+      sensor_data = ts_data
+    } else {
+      sensor_data = rbind(sensor_data, ts_data)
+    }
+    i = i + 1
+  }
+  return(sensor_data)
+}
+
+```
+
+
+```{r}
+# Define urls
+sentek_url = "https://www.dropbox.com/scl/fi/2xgffpg1gdms28pr8jbgr/24-KSU-TAPS-Sentek.xlsx?rlkey=lhmpdb4j19q962zmgzc5kyumj&st=x53jytk3&dl=1"
+groguru_url = "https://www.dropbox.com/scl/fi/4v5yrnqtmymthcjrfq2n3/24-KSU-TAPS-GroGuru.xls?rlkey=815wgna44s3urvy9nvk3kcfha&st=a2iu3mrw&dl=1"
+cropx_url = "https://www.dropbox.com/scl/fi/rgtbcuhxsq949riducitk/24-KSU-TAPS-CropX.xlsx?rlkey=ly6tg462j1mmfpyzvvaqynusr&st=wu7h8ltd&dl=1"
+arable_url = "https://www.dropbox.com/scl/fi/9uzelfv72s0sxsomwygov/24-KSU-TAPS-Arable.xlsx?rlkey=qwzndxaiikk8xhowsr723md8z&st=qu7edvob&dl=1"
+aquaspy_url = "https://www.dropbox.com/scl/fi/z6fx16khl8nvdt9bpzcyq/24-KSU-TAPS-AquaSpy.xlsx?rlkey=7lhbfddwjo8eot20u0ynxfobs&st=lkmozcbp&dl=1"
+
+# Define row number for first row of data for each sensor dataset
+sentek_start = 4
+groguru_start = 4
+cropx_start = 4
+arable_start = 4
+aquaspy_start = 5
+
+# Define column names
+sentek_vars = c("Moisture", "Temp")
+sentek_levels = c(5,15,25,35,45,55,65,75,85)
+sentek_cols = c("Timestamp", "V1", "V2", apply(expand.grid(sentek_vars, sentek_levels), 1, paste, collapse="_"))
+groguru_cols = c("Timestamp", "Sensor", "Available_Water", "Absolute_Moisture", "Relative_Moisture", "Temp", "Available_water_relative")
+cropx_cols = c("Timestamp", "Moisture_8", "Moisture_16", "Moisture_26", "Temp_8", "Temp_16", "Ecpw_8", "Ecpw_16", "Ecpw_26")
+arable_cols = c("Timestamp", "Chlorophyll", "Field_ET", "Canopy_ET", "Growing_Days", "Cummulative_Growing_Days", "NDVI", "Min_Relative_Humidity", "Relative_Humidity_Max_Temp", "Relative_Humidity_Min_Temp", "Radiation", "Max_Temp", "Mean_Temp", "Min_Temp", "Max_Dew_Temp", "Max_Temp_Time", "Min_Temp_Time", "Percipitation", "Percipitation_Hours", "Cummulative_Percepitation", "Sea_Pressure", "Vapor_Pressure", "Crop_Coeff", "Leaf_Wetness_Hours", "Dew_Temp", "Crop_Water_Demand", "Sun_Duration", "Wind_Direction", "Wind_Speed", "Wind_Direction_Degrees", "Max_Wind_Speed", "Min_Wind_Speed")
+aquaspy_levels = c(4,8,12,16,20,24,28,32,36,40,44,48)
+aquaspy_cols = c("Timestamp", "MS", paste("Moisture", aquaspy_levels, sep="_"), paste("EC", aquaspy_levels, sep="_"), paste("Temp", aquaspy_levels, sep="_"))
+
+# Define teams in each sensor data
+sentek_teams = c(3,9,10,16,17,23,29,30,32,33,34)
+groguru_teams = c(4,7,16,20)
+cropx_teams = c(4,11,16,24)
+arable_teams = c(2,4,5,13,15,16,18,21,22,26,27,28)
+aquaspy_teams = c(12,14,16,25,28,31)
+
+# Use functions to import sensor data
+sentek_data = import_sensor_data(sentek_teams, sentek_url, sentek_start, sentek_cols, TRUE)
+groguru_data = import_sensor_data(groguru_teams, groguru_url, groguru_start, groguru_cols, FALSE)
+cropx_data = import_sensor_data(cropx_teams, cropx_url, cropx_start, cropx_cols, TRUE)
+arable_data = import_sensor_data(arable_teams, arable_url, arable_start, arable_cols, TRUE)
+aquaspy_data = import_sensor_data(aquaspy_teams, aquaspy_url, aquaspy_start, aquaspy_cols, TRUE)
+
+```
+
+```{r}
+
+x = import_team_sensor_data(16, aquaspy_url, aquaspy_start, aquaspy_cols)
+y = import_team_sensor_data(16, arable_url, arable_start, arable_cols)
+y_daily = daily_sensor_averages(y)
+y_weekly = weekly_sensor_averages(y_daily)
+
+
+```
+
+
+
+
+
+
