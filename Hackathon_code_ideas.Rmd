@@ -46,13 +46,23 @@ import_team_sensor_data = function(team_num, sensor_url, data_start, sensor_cols
     temp_file <- tempfile(fileext = ".xls")
   }
   download.file(sensor_url, temp_file, mode = "wb")
-  if(CROPX_TF==FALSE){
-    team_sensor_data = read_excel(temp_file, sheet=sheet_name, skip=(data_start-2), 
-                                  .name_repair = "unique_quiet")
+  team_sensor_data = read_excel(temp_file, sheet=sheet_name, skip=(data_start-2), .name_repair = "unique_quiet")
+  if(CROPX_TF==TRUE){
+    if(team_num == 24){
+      team_sensor_data$Date = as.POSIXct(team_sensor_data$Date, tryFormats="%d/%m/%y %H:%M")
+    } else{
+      dates = c(Sys.time())
+      for(i in seq(1,dim(team_sensor_data)[1])){
+        date_i = team_sensor_data[i,]$Date
+        if(is.na(as.numeric(date_i))==TRUE){
+          dates = c(dates, as.POSIXct(date_i, tryFormats="%d/%m/%y %H:%M"))
+        } else {
+          dates = c(dates, as.POSIXct(as.Date(as.numeric(date_i), origin="1899-12-30")))
+        }
+      }
+      team_sensor_data$Date = dates[2:length(dates)]
+    }
     
-  } else{
-    team_sensor_data = read_excel(temp_file, sheet=sheet_name, skip=(data_start-2), .name_repair = "unique_quiet")
-    team_sensor_data$Date = as.POSIXct(as.Date(as.numeric(team_sensor_data$Date), origin="1899-12-30"))
   }
   # Define column names
   colnames(team_sensor_data) = sensor_cols
@@ -76,38 +86,6 @@ daily_sensor_averages = function(team_sensor_data){
 }
 
 # Define function to find weekly averages
-irrigation_data_dates = unique(irrigation_amounts_long$Date)
-weekly_sensor_averages = function(daily_data)
-{
-  i = 1
-  for(day in irrigation_data_dates){
-    # Define start day
-    start_day = day - days(6)
-    # Filter data
-    day_data = daily_data[daily_data$Timestamp <= day & daily_data$Timestamp >= start_day,]
-    # Calculate averages
-    averages = day_data %>% summarise_if(is.numeric, mean, na.rm = TRUE)
-    # Define timestamp
-    averages$Timestamp = as.POSIXct(day, format="%m/%d/%Y")
-    # Re order columns to match original order
-    n_cols = dim(averages)[2]
-    averages_ordered = averages[,c(n_cols, 1:(n_cols-1))]
-    # Define summarization level and date
-    averages_ordered$Summarization_level = "Weekly_Average"
-    averages_ordered$Date = day
-    print(averages_ordered)
-    # If i=1, store as new variable, if i>1, rbind
-    if(i==1){
-      average_results = averages_ordered
-    } else {
-      average_results = rbind(average_results, averages_ordered)
-    }
-    i = i + 1
-  }
-  return(average_results)
-}
-
-# Define function to find weekly averages
 irrigation_data_dates = as.character(unique(irrigation_amounts_long$Date))
 weekly_sensor_averages = function(daily_data)
 {
@@ -121,14 +99,14 @@ weekly_sensor_averages = function(daily_data)
     # Calculate averages
     averages = day_data %>% summarise_if(is.numeric, mean, na.rm = TRUE)
     # Define timestamp
-    averages$Timestamp = as.POSIXct(day, format="%m/%d/%Y")
+    averages$Timestamp = as.POSIXct(end_day, format="%m/%d/%Y")
     # Re order columns to match original order
     n_cols = dim(averages)[2]
     averages_ordered = averages[,c(n_cols, 1:(n_cols-1))]
+    averages_ordered$Timestamp = as.POSIXct(end_day, format="%m/%d/%Y")
     # Define summarization level and date
     averages_ordered$Summarization_level = "Weekly_Average"
     averages_ordered$Date = end_day
-    print(averages_ordered)
     # If i=1, store as new variable, if i>1, rbind
     if(i==1){
       average_results = averages_ordered
@@ -136,6 +114,7 @@ weekly_sensor_averages = function(daily_data)
       average_results = rbind(average_results, averages_ordered)
     }
     i = i + 1
+    
   }
   return(average_results)
 }
@@ -147,7 +126,7 @@ import_sensor_data = function(sensor_teams, sensor_url, sensor_start, sensor_col
   {
     ts_data_cont = import_team_sensor_data(team, sensor_url, sensor_start, sensor_cols, xlsx_TF, CROPX_TF)
     ts_daily_data = daily_sensor_averages(ts_data_cont)
-    ts_weekly_data = ts_daily_data
+    ts_weekly_data = weekly_sensor_averages(ts_daily_data)
     
     ts_data_cont_common_cols = ts_data_cont[,colnames(ts_daily_data)]
     
@@ -167,7 +146,7 @@ import_sensor_data = function(sensor_teams, sensor_url, sensor_start, sensor_col
 ```
 
 
-```{r}
+```{r, warning=FALSE}
 # Define urls
 sentek_url = "https://www.dropbox.com/scl/fi/2xgffpg1gdms28pr8jbgr/24-KSU-TAPS-Sentek.xlsx?rlkey=lhmpdb4j19q962zmgzc5kyumj&st=x53jytk3&dl=1"
 groguru_url = "https://www.dropbox.com/scl/fi/4v5yrnqtmymthcjrfq2n3/24-KSU-TAPS-GroGuru.xls?rlkey=815wgna44s3urvy9nvk3kcfha&st=a2iu3mrw&dl=1"
@@ -208,15 +187,62 @@ aquaspy_data = import_sensor_data(aquaspy_teams, aquaspy_url, aquaspy_start, aqu
 
 ```
 
+# Import weather data
+
 ```{r}
+mesonet_url = "https://www.dropbox.com/scl/fi/gihiuqiq5sv821kxs504k/colby_station_kansas_mesonet.csv?rlkey=twzw9k35aztrrlw1vnjhx5wkh&st=etbmn9bd&dl=1"
 
-x = import_team_sensor_data(16, aquaspy_url, aquaspy_start, aquaspy_cols)
-y = import_team_sensor_data(16, arable_url, arable_start, arable_cols)
-y_daily = daily_sensor_averages(y)
-y_weekly = weekly_sensor_averages(y_daily)
+mesonet_data = read.csv(mesonet_url, header=T, sep=",")
 
+colnames(mesonet_data)[1]="Timestamp"
+mesonet_data$Date = as.Date(mesonet_data$Timestamp, tryFormats="%m/%d/%Y")
+mesonet_data$Timestamp = as.POSIXct(mesonet_data$Date)
+mesonet_data$Summarization_level = "Daily_Average"
+
+
+weather_weekly = weekly_sensor_averages(mesonet_data)
+
+weather_data = rbind(mesonet_data[,colnames(weather_weekly)], weather_weekly)
+write.csv(weather_data, file="weather_data.csv")
 
 ```
+
+
+# Process sensor data to get moisture
+```{r}
+
+aquaspy_data_cols_desired = aquaspy_data[,c(1,3:14,39:41)]
+aquaspy_data_cols_desired_long = aquaspy_data_cols_desired%>%pivot_longer(cols=2:13, names_to="Depth", values_to="Moisture")
+aquaspy_data_cols_desired_long$Sensor = "AquaSpy"
+aquaspy_data_cols_desired_long$Depth = as.numeric(sapply(aquaspy_data_cols_desired_long$Depth, function(x) unlist(strsplit(x,"_"))[2]))
+
+cropx_data_cols_desired = cropx_data[,c(1:4,10:12)]
+cropx_data_cols_desired_long = cropx_data_cols_desired%>%pivot_longer(cols=2:4, names_to="Depth", values_to="Moisture")
+cropx_data_cols_desired_long$Sensor = "CropX"
+cropx_data_cols_desired_long$Depth = as.numeric(sapply(cropx_data_cols_desired_long$Depth, function(x) unlist(strsplit(x,"_"))[2]))
+
+sentek_data_cols_desired = sentek_data[,c(1,4,6,8,10,12,14,16,18,20,22:24)]
+sentek_data_cols_desired_long = sentek_data_cols_desired%>%pivot_longer(cols=2:10, names_to="Depth", values_to="Moisture")
+sentek_data_cols_desired_long$Sensor = "Sentek"
+sentek_data_cols_desired_long$Depth = as.numeric(sapply(sentek_data_cols_desired_long$Depth, function(x) unlist(strsplit(x,"_"))[2]))/2.54
+
+all_data_sensors_moisture = rbind(sentek_data_cols_desired_long, cropx_data_cols_desired_long, aquaspy_data_cols_desired_long)
+
+write.csv(all_data_sensors_moisture, file="all_data_sensors_moisture.csv", col.names=TRUE)
+
+```
+
+# Merge data together
+```{r}
+# Extract weekly data
+all_data_sensors_weekly = all_data_sensors_moisture[all_data_sensors_moisture$Summarization_level=="Weekly_Average",]
+
+# Merge with weather
+weekly_merge1 = merge(all_data_sensors_weekly, weather_weekly, by="Timestamp", all=TRUE)
+
+```
+
+
 
 
 
