@@ -144,7 +144,8 @@ ui <- bs4DashPage(
     )
     
     
-    
+    tags$style(HTML(".content-wrapper {  background-image: url('Folder2.png'); background-size: contain; background-repeat: no-repeat;  background-position: center;width: 100vw;
+    height: 100vh; }"))
   ),
   # ------------------------------- End Body
   
