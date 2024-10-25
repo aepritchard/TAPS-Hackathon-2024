@@ -28,12 +28,20 @@ temp_file <- tempfile(fileext = ".xlsx")
 download.file(management_url, temp_file, mode = "wb")
 planting_date = read_excel(temp_file, sheet="Planting date", skip=1, .name_repair = "unique_quiet")
 colnames(planting_date) = c("Farm_ID", "Planting_Date", "Company_Hybrid", "Seeding_Rate")
+write.csv(planting_date, file="planting_date.csv")
 
 # Import irrigation amounts and transpose
 irrigation_amounts = read_excel(temp_file, sheet="Irrigation amounts", skip=1, .name_repair = "unique_quiet")
-colnames(irrigation_amounts) = c("Team","4/25/2024","5/23/2024","6/11/2024","6/18/2024","6/25/2024","7/2/2024","7/9/2024","7/10/2024","7/16/2024","7/17/2024","7/23/2024","7/23/2024","7/30/2024","8/6/2024","8/7/2024","8/13/2024","8/20/2024","8/27/2024","9/3/2024","9/10/2024","Total")
-irrigation_amounts_long = irrigation_amounts%>%pivot_longer(cols=c("4/25/2024","5/23/2024","6/11/2024","6/18/2024","6/25/2024","7/2/2024","7/9/2024","7/10/2024","7/16/2024","7/17/2024","7/23/2024","7/23/2024","7/30/2024","8/6/2024","8/7/2024","8/13/2024","8/20/2024","8/27/2024","9/3/2024","9/10/2024"), names_to="Day", values_to="Amount")
+colnames(irrigation_amounts) = c("Team","4/25/2024","5/23/2024","6/11/2024","6/18/2024","6/25/2024","7/2/2024","7/9/2024","7/10/2024","7/16/2024","7/17/2024","7/23/2024","7/23/2024_1","7/30/2024","8/6/2024","8/7/2024","8/13/2024","8/20/2024","8/27/2024","9/3/2024","9/10/2024","Total")
+irrigation_amounts$"7/23/2024" = irrigation_amounts$"7/23/2024" + irrigation_amounts$"7/23/2024_1"
+irrigation_amounts$"7/9/2024" = irrigation_amounts$"7/9/2024" + irrigation_amounts$"7/10/2024"
+irrigation_amounts$"8/6/2024" = irrigation_amounts$"8/6/2024" + irrigation_amounts$"8/7/2024"
+irrigation_amounts$"7/16/2024" = irrigation_amounts$"7/16/2024" + irrigation_amounts$"7/17/2024"
+irrigation_amounts = irrigation_amounts[,c("Team","4/25/2024","5/23/2024","6/11/2024","6/18/2024","6/25/2024","7/2/2024","7/9/2024","7/16/2024","7/23/2024","7/30/2024","8/6/2024","8/13/2024","8/20/2024","8/27/2024","9/3/2024","9/10/2024")]
+irrigation_amounts_long = irrigation_amounts%>%pivot_longer(cols=c("4/25/2024","5/23/2024","6/11/2024","6/18/2024","6/25/2024","7/2/2024","7/9/2024","7/16/2024","7/23/2024","7/30/2024","8/6/2024","8/13/2024","8/20/2024","8/27/2024","9/3/2024","9/10/2024"), names_to="Day", values_to="Amount")
 irrigation_amounts_long$Date = as.Date(irrigation_amounts_long$Day, tryFormats="%m/%d/%Y")
+
+write.csv(irrigation_amounts_long, file="irrigation_amounts_long.csv")
 ```
 # Import sensor data
 ```{r}
@@ -107,11 +115,17 @@ weekly_sensor_averages = function(daily_data)
     # Define summarization level and date
     averages_ordered$Summarization_level = "Weekly_Average"
     averages_ordered$Date = end_day
+    # Define initial moisture
+    initial = daily_data[daily_data$Timestamp == (start_day-days(1)),]
+    initial$Summarization_level = "Initial"
+    initial$Date = averages_ordered$Date
+    initial = initial[,colnames(averages_ordered)]
     # If i=1, store as new variable, if i>1, rbind
     if(i==1){
       average_results = averages_ordered
+      average_results = rbind(average_results, initial)
     } else {
-      average_results = rbind(average_results, averages_ordered)
+      average_results = rbind(average_results, averages_ordered, initial)
     }
     i = i + 1
     
@@ -201,6 +215,7 @@ mesonet_data$Summarization_level = "Daily_Average"
 
 
 weather_weekly = weekly_sensor_averages(mesonet_data)
+weather_weekly = weather_weekly[weather_weekly$Summarization_level=="Weekly_Average",]
 
 weather_data = rbind(mesonet_data[,colnames(weather_weekly)], weather_weekly)
 write.csv(weather_data, file="weather_data.csv")
@@ -233,12 +248,30 @@ write.csv(all_data_sensors_moisture, file="all_data_sensors_moisture.csv", col.n
 ```
 
 # Merge data together
+
 ```{r}
 # Extract weekly data
-all_data_sensors_weekly = all_data_sensors_moisture[all_data_sensors_moisture$Summarization_level=="Weekly_Average",]
+all_data_sensors_weekly = all_data_sensors_moisture[all_data_sensors_moisture$Summarization_level=="Weekly_Average" | all_data_sensors_moisture$Summarization_level=="Initial",]
+
+# Define dates
+all_data_sensors_weekly$Date = as.character(as.Date(all_data_sensors_weekly$Timestamp))
+weather_weekly$Date = as.character(as.Date(weather_weekly$Timestamp))
+irrigation_amounts_long$Date = as.character(irrigation_amounts_long$Date)
 
 # Merge with weather
-weekly_merge1 = merge(all_data_sensors_weekly, weather_weekly, by="Timestamp", all=TRUE)
+weekly_merge1 = merge(all_data_sensors_weekly, weather_weekly, 
+                      by=c("Date"), all.x=TRUE)
+
+# Merge with irrigation
+weekly_merge2 = merge(weekly_merge1, irrigation_amounts_long, by=c("Team", "Date"))
+
+# Add initial moisture
+weekly = weekly_merge2[weekly_merge2$Summarization_level.x == "Weekly_Average",]
+initial = weekly_merge2[weekly_merge2$Summarization_level.x == "Initial",]
+initial$Inital_Moisture = initial$Moisture
+
+initial = initial[,c("Team", "Date", "Depth", "Inital_Moisture", "Sensor")]
+merge3 = merge(weekly, initial, by=c("Team", "Date", "Depth", "Sensor"), all.x=TRUE)
 
 ```
 
