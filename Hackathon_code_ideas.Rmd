@@ -38,7 +38,7 @@ irrigation_amounts_long$Date = as.Date(irrigation_amounts_long$Day, tryFormats="
 # Import sensor data
 ```{r}
 # Define function to read in team data for a given team and given sensor
-import_team_sensor_data = function(team_num, sensor_url, data_start, sensor_cols, xlsx_TF){
+import_team_sensor_data = function(team_num, sensor_url, data_start, sensor_cols, xlsx_TF, CROPX_TF){
   sheet_name = capture.output(cat("Team #", team_num, " Data", sep=""))
   if(xlsx_TF == TRUE){
     temp_file <- tempfile(fileext = ".xlsx")
@@ -46,7 +46,14 @@ import_team_sensor_data = function(team_num, sensor_url, data_start, sensor_cols
     temp_file <- tempfile(fileext = ".xls")
   }
   download.file(sensor_url, temp_file, mode = "wb")
-  team_sensor_data = read_excel(temp_file, sheet=sheet_name, skip=(data_start-2), .name_repair = "unique_quiet")
+  if(CROPX_TF==FALSE){
+    team_sensor_data = read_excel(temp_file, sheet=sheet_name, skip=(data_start-2), 
+                                  .name_repair = "unique_quiet")
+    
+  } else{
+    team_sensor_data = read_excel(temp_file, sheet=sheet_name, skip=(data_start-2), .name_repair = "unique_quiet")
+    team_sensor_data$Date = as.POSIXct(as.Date(as.numeric(team_sensor_data$Date), origin="1899-12-30"))
+  }
   # Define column names
   colnames(team_sensor_data) = sensor_cols
   # Add summarization level and date
@@ -134,11 +141,11 @@ weekly_sensor_averages = function(daily_data)
 }
 
 # Define function to import, calculate averages, and combine across teams
-import_sensor_data = function(sensor_teams, sensor_url, sensor_start, sensor_cols, xlsx_TF){
+import_sensor_data = function(sensor_teams, sensor_url, sensor_start, sensor_cols, xlsx_TF, CROPX_TF){
   i = 1
   for(team in sensor_teams)
   {
-    ts_data_cont = import_team_sensor_data(team, sensor_url, sensor_start, sensor_cols, xlsx_TF)
+    ts_data_cont = import_team_sensor_data(team, sensor_url, sensor_start, sensor_cols, xlsx_TF, CROPX_TF)
     ts_daily_data = daily_sensor_averages(ts_data_cont)
     ts_weekly_data = ts_daily_data
     
@@ -164,7 +171,7 @@ import_sensor_data = function(sensor_teams, sensor_url, sensor_start, sensor_col
 # Define urls
 sentek_url = "https://www.dropbox.com/scl/fi/2xgffpg1gdms28pr8jbgr/24-KSU-TAPS-Sentek.xlsx?rlkey=lhmpdb4j19q962zmgzc5kyumj&st=x53jytk3&dl=1"
 groguru_url = "https://www.dropbox.com/scl/fi/4v5yrnqtmymthcjrfq2n3/24-KSU-TAPS-GroGuru.xls?rlkey=815wgna44s3urvy9nvk3kcfha&st=a2iu3mrw&dl=1"
-cropx_url = "https://www.dropbox.com/scl/fi/rgtbcuhxsq949riducitk/24-KSU-TAPS-CropX.xlsx?rlkey=ly6tg462j1mmfpyzvvaqynusr&st=wu7h8ltd&dl=1"
+cropx_url = "https://www.dropbox.com/scl/fi/7x5yt6wmgfvt9qp9h137q/24-KSU-TAPS-CropX.xlsx?rlkey=pwajbh2pu8nknjg292b88cs1m&st=npyyhrvc&dl=1"
 arable_url = "https://www.dropbox.com/scl/fi/9uzelfv72s0sxsomwygov/24-KSU-TAPS-Arable.xlsx?rlkey=qwzndxaiikk8xhowsr723md8z&st=qu7edvob&dl=1"
 aquaspy_url = "https://www.dropbox.com/scl/fi/z6fx16khl8nvdt9bpzcyq/24-KSU-TAPS-AquaSpy.xlsx?rlkey=7lhbfddwjo8eot20u0ynxfobs&st=lkmozcbp&dl=1"
 
@@ -193,11 +200,11 @@ arable_teams = c(2,4,5,13,15,16,18,21,22,26,27,28)
 aquaspy_teams = c(12,14,16,25,28,31)
 
 # Use functions to import sensor data
-sentek_data = import_sensor_data(sentek_teams, sentek_url, sentek_start, sentek_cols, TRUE)
-groguru_data = import_sensor_data(groguru_teams, groguru_url, groguru_start, groguru_cols, FALSE)
-cropx_data = import_sensor_data(cropx_teams, cropx_url, cropx_start, cropx_cols, TRUE)
-arable_data = import_sensor_data(arable_teams, arable_url, arable_start, arable_cols, TRUE)
-aquaspy_data = import_sensor_data(aquaspy_teams, aquaspy_url, aquaspy_start, aquaspy_cols, TRUE)
+sentek_data = import_sensor_data(sentek_teams, sentek_url, sentek_start, sentek_cols, TRUE, FALSE)
+groguru_data = import_sensor_data(groguru_teams, groguru_url, groguru_start, groguru_cols, FALSE, FALSE)
+cropx_data = import_sensor_data(cropx_teams, cropx_url, cropx_start, cropx_cols, TRUE, TRUE)
+#arable_data = import_sensor_data(arable_teams, arable_url, arable_start, arable_cols, TRUE)
+aquaspy_data = import_sensor_data(aquaspy_teams, aquaspy_url, aquaspy_start, aquaspy_cols, TRUE, FALSE)
 
 ```
 
