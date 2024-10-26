@@ -1,0 +1,12 @@
+---
+title: "Hackathon_code_model_building"
+author: "Ashley Pritchard"
+date: "2024-10-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
