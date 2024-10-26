@@ -223,9 +223,34 @@ mesonet_data$Date = as.Date(mesonet_data$Timestamp, tryFormats="%m/%d/%Y")
 mesonet_data$Timestamp = as.POSIXct(mesonet_data$Date)
 mesonet_data$Summarization_level = "Daily_Average"
 
+mesonet_data[,3:15] = apply(mesonet_data[,3:15],2, as.numeric)
 
-weather_weekly = weekly_sensor_averages(mesonet_data, mesonet_data)
-weather_weekly = weather_weekly[weather_weekly$Summarization_level=="Weekly_Average",]
+i = 1
+weather_weekly = mesonet_data[1,c("Timestamp", "TEMP2MAVG", "TEMP2MMIN", "TEMP2MMAX", "PRECIP")]
+daily_data = mesonet_data
+for(end_day in irrigation_data_dates){
+  # Define start and end days
+  end_day = as.Date(end_day, tryFormats = "%Y-%m-%d")
+  start_day = end_day - days(6)
+  # Filter data
+  day_data = daily_data[daily_data$Timestamp < (end_day + days(1)) & daily_data$Timestamp >= start_day,]
+  
+  # Define variables
+  weather_weekly[(i+1),]$Timestamp = as.POSIXct(end_day, format="%m/%d/%Y")
+  weather_weekly[(i+1),]$TEMP2MAVG = mean(day_data$TEMP2MAVG)
+  weather_weekly[(i+1),]$TEMP2MMIN = min(day_data$TEMP2MMIN)
+  weather_weekly[(i+1),]$TEMP2MMAX = max(day_data$TEMP2MMAX)
+  weather_weekly[(i+1),]$PRECIP = sum(day_data$PRECIP)
+  
+
+  # Define summarization level and date
+  weather_weekly$Summarization_level = "Weekly_Average"
+  weather_weekly$Date = end_day
+
+  i = i + 1
+    
+}
+
 
 weather_data = rbind(mesonet_data[,colnames(weather_weekly)], weather_weekly)
 write.csv(weather_data, file="weather_data.csv")
@@ -285,10 +310,10 @@ merge3 = merge(weekly, initial, by=c("Team", "Date", "Depth", "Sensor"), all.x=T
 
 
 all_sensor_weather_irrigation_data = merge3[,c("Team", "Depth", "Sensor", 
-                                               "Timestamp.x", "Summarization_level.x", "Moisture", 
+                                               "Timestamp.x", "Summarization_level.x", "Moisture", "PRECIP",
                                                "TEMP2MAVG","TEMP2MMIN", "TEMP2MMAX", "Amount", "Moisture")]
 colnames(all_sensor_weather_irrigation_data) = c("Team", "Depth", "Sensor", 
-                                               "Timestamp", "Summarization_level", "Moisture", 
+                                               "Timestamp", "Summarization_level", "Moisture", "PRECIP",
                                                "TEMP2MAVG","TEMP2MMIN", "TEMP2MMAX", "Irrigation_Amount", "Initial_Moisture")
 all_sensor_weather_irrigation_data$Date = format(all_sensor_weather_irrigation_data$Timestamp, "%m/%d/%Y")
 
