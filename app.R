@@ -141,7 +141,7 @@ ui <- bs4DashPage(
       )
       
       #-------------------- End Data Prediction Tab
-    )
+    ),
     
     
     tags$style(HTML(".content-wrapper {  background-image: url('Folder2.png'); background-size: contain; background-repeat: no-repeat;  background-position: center;width: 100vw;
