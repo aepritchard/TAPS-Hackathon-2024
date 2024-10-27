@@ -9,4 +9,81 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Load libraries and data
+```{r}
+library(mgcv)
+```
+
+
+```{r}
+url = "https://www.dropbox.com/scl/fi/4od5qok99fwqnrbywnmn9/all_sensor_weather_irrigation_data.csv?rlkey=io4vnd1lv46wzmpmwi932x0ng&st=g3vfgnbf&dl=1"
+all_data = read.csv(url, header=T, sep=",")
+
+all_data$Total_water = all_data$Irrigation_Amount + all_data$PRECIP # Total water = Irrigation + Precipitation
+all_data$Moisture = all_data$Moisture/100 # Convert from percentage to proportion
+
+model_data = all_data[all_data$Summarization_level == "Weekly_Average",c("Depth", "Sensor", "Moisture", "TEMP2MAVG", "Initial_Moisture", "Total_water")]
+model_data = model_data[!is.na(model_data$Moisture),]
+model_data = model_data[!is.na(model_data$Initial_Moisture),]
+model_data$Total_water_ln = log(model_data$Total_water+1)
+```
+
+# Build models
+```{r}
+#water_predictor = lm(Total_water_ln ~ poly(Depth,3) + Sensor + poly(Moisture,5) + TEMP2MAVG + Initial_Moisture, data=model_data)
+water_predictor = gam(Total_water_ln ~ Depth + Sensor + Moisture + TEMP2MAVG + Initial_Moisture, data=model_data)
+summary(water_predictor)
+```
+```{r}
+#moisture_predictor = lm(Moisture ~ Depth*Sensor*Total_water*TEMP2MAVG*Initial_Moisture, data=model_data)
+moisture_predictor = gam(Moisture ~ Depth + Sensor + Total_water + TEMP2MAVG + Initial_Moisture, data=model_data, family=betar())
+summary(moisture_predictor)
+```
+# Build prediction
+```{r}
+# User inputs
+set.seed(1234)
+depth = runif(1, range(model_data$Depth)[1], range(model_data$Depth)[2])
+sensor = "Sentek"
+TEMP2MAVG = runif(1, range(model_data$TEMP2MAVG)[1], range(model_data$TEMP2MAVG)[2])
+initial_moisture = runif(1, range(model_data$Initial_Moisture, na.rm=T)[1], range(model_data$Initial_Moisture, na.rm=T)[2])
+
+# Define ranges of moisture and total_water
+moisture = seq(0,1,0.01)
+total_water = seq(0,10,0.01)
+
+# Put user inputs into dataframe
+moisture_predictors = data.frame(Depth=depth, Sensor=sensor, TEMP2MAVG = TEMP2MAVG, Initial_Moisture=initial_moisture, Total_water = total_water)
+water_predictors = data.frame(Depth=depth, Sensor=sensor, Moisture=moisture, TEMP2MAVG = TEMP2MAVG, Initial_Moisture=initial_moisture)
+
+# Get predictions
+water_prediction = predict(water_predictor, newdata=water_predictors, type="response", se.fit=TRUE)
+moisture_prediction = predict(moisture_predictor, newdata=moisture_predictors, type="response", se.fit=TRUE)
+
+# Combine data
+water_data = cbind(water_prediction, water_predictors)
+moist_data = cbind(moisture_prediction, moisture_predictors)
+
+```
+
+```{r}
+# Plot water_data
+ggplot() +
+  geom_line(data = water_data, aes(x = moisture, y = fit), color = "blue", size = 1) +
+  geom_ribbon(data = water_data, aes(x = moisture, 
+                                ymin = fit - 1.96 * se.fit, 
+                                ymax = fit + 1.96 * se.fit), alpha = 0.3) +
+  labs(title = "Title",  x = "Soil Moisture", y = "Total Water Needed") +
+  theme_minimal()
+```
+```{r}
+# Plot water_data
+ggplot() +
+  geom_line(data = moist_data, aes(x = total_water, y = fit), color = "blue", size = 1) +
+  geom_ribbon(data = moist_data, aes(x = total_water, 
+                                ymin = fit - 1.96 * se.fit, 
+                                ymax = fit + 1.96 * se.fit), alpha = 0.3) +
+  labs(title = "Title",  x = "Total Water", y = "Soil Moisture") +
+  theme_minimal()
+```
 
