@@ -1,7 +1,6 @@
 
 
 
-library(renv)
 library(shiny)
 library(bs4Dash)
 library(leaflet)
@@ -13,25 +12,21 @@ library(DT)
 library(shinyWidgets)
 library(waiter)
 library(highcharter)
-library(dplyr)
-library(plyr)
-library(fresh)
 
+# This is meant to run Hackathon_code_ideas.RMD first and then run this file 
 # Create Theme
 theme <- fresh::create_theme(
   bs4dash_status(
     primary = "#512888"
   )
 )
-# This is meant to run Hackathon_code_ideas.RMD first and then run this file 
-# To get the app ui only need to run ui server and shinyapp
-
 
 all_data_sensors_moisture <- read.csv("https://www.dropbox.com/scl/fi/1gpmfwnwj6cesqjozvj1i/all_data_sensors_moisture.csv?rlkey=0qqmtdodrtbojgdiqzigho9ud&st=zxqdrjqe&dl=1")
 merged_data <- read.csv("https://www.dropbox.com/scl/fi/1gpmfwnwj6cesqjozvj1i/all_data_sensors_moisture.csv?rlkey=0qqmtdodrtbojgdiqzigho9ud&st=wbqmjoi6&dl=1")
 
 merged_data$Date = as.Date(merged_data$Timestamp)
 all_data_sensors_moisture$Date = as.Date(all_data_sensors_moisture$Timestamp)
+
 
 ui <- bs4DashPage(
   
@@ -222,20 +217,14 @@ ui <- bs4DashPage(
                   no = tags$i(class = "fa fa-circle-o", 
                               style = "color: steelblue"))
               )
-              
-              
             )
-            
           )
         )
       )
       
       #-------------------- End Data Prediction Tab
     ),
-    
     tags$style(HTML(".content-wrapper {  background-image: url('Folder2.png'); background-size: fit-content; background-repeat: no-repeat;  background-position: center; }"))
-    
-    
   ),
   # ------------------------------- End Body
   
@@ -260,7 +249,7 @@ ui <- bs4DashPage(
 server <- function(input, output, session) {
   
   
-  # ----------------------------- Tab Exploration (TE)
+  # ------------------------------------------- Tab Exploration (TE)
   
   # ----------------------- TE: Scatterplot 
   # Reactive Data Scatterplot 
@@ -332,15 +321,12 @@ server <- function(input, output, session) {
     }
   )
   
-  
-  
-  
-  
   # ----------------------- End TE: Scatterplot
   
-  # ----------------------------- End Tab Exploration (TE)
   
-  # ----------------------------- Tab Prediction Inputs 
+  # ------------------------------------------- End Tab Exploration (TE)
+  
+  # ------------------------------------------- Tab Prediction (TP) 
   observeEvent(input$inputResponse,
                {
                  if(input$inputResponse == "Moisture") {
@@ -362,7 +348,7 @@ server <- function(input, output, session) {
                    )
                  }
                })
-  # ----------------------------- End Tab Prediction Inputs 
+  # ------------------------------------------- End Tab Prediction (TP) 
   
   
   
@@ -378,46 +364,7 @@ server <- function(input, output, session) {
 
 
 
+
 # Run the application 
 shinyApp(ui = ui, server = server)
-
-
-
-temp <- all_data_sensors_moisture %>% 
-  filter(Team %in% c(3, 4, 16), Sensor == "CropX", Summarization_level == "Weekly_Average") 
-
-
-
-
-temp %>% hchart("column", hcaes(x = "Date", y = "Moisture", group = Team)) %>%
-  hc_navigator(enabled = T) %>%
-  hc_add_theme(hc_theme_economist()) %>%
-  hc_xAxis(title = list(text = "Date")) %>%
-  hc_yAxis(title = list(text = "Total Moisture"))
-
-
-
-
-class(all_data_sensors_moisture)
-
-
-
-temp <- all_data_sensors_moisture %>% filter(
-  Team %in% c(9, 10, 16),
-  Sensor %in% "AquaSpy",
-  Summarization_level == "Weekly_Average")
-
-temp
-
-temp %>% hchart("column", hcaes(x = "Date", y = "Moisture", group = "Team"))
-
-
-merged_data 
-
-# Area Chart
-# Scatterplot 
-# get rid of continuous 
-
-
-
 
