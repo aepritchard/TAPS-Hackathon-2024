@@ -260,21 +260,54 @@ write.csv(weather_data, file="weather_data.csv")
 
 # Process sensor data to get moisture
 ```{r}
-
+# Moisture
 aquaspy_data_cols_desired = aquaspy_data[,c(1,3:14,39:41)]
-aquaspy_data_cols_desired_long = aquaspy_data_cols_desired%>%pivot_longer(cols=2:13, names_to="Depth", values_to="Moisture")
-aquaspy_data_cols_desired_long$Sensor = "AquaSpy"
-aquaspy_data_cols_desired_long$Depth = as.numeric(sapply(aquaspy_data_cols_desired_long$Depth, function(x) unlist(strsplit(x,"_"))[2]))
+aquaspy_data_cols_desired_long_moisture = aquaspy_data_cols_desired%>%pivot_longer(cols=2:13, names_to="Depth", values_to="Moisture")
+aquaspy_data_cols_desired_long_moisture$Sensor = "AquaSpy"
+aquaspy_data_cols_desired_long_moisture$Depth = as.numeric(sapply(aquaspy_data_cols_desired_long_moisture$Depth, function(x) unlist(strsplit(x,"_"))[2]))
 
+# Temp
+aquaspy_data_cols_desired = aquaspy_data[,c(1,27:38,39:41)]
+aquaspy_data_cols_desired_long_temp = aquaspy_data_cols_desired%>%pivot_longer(cols=2:13, names_to="Depth", values_to="Soil_Temp")
+aquaspy_data_cols_desired_long_temp$Sensor = "AquaSpy"
+aquaspy_data_cols_desired_long_temp$Depth = as.numeric(sapply(aquaspy_data_cols_desired_long_temp$Depth, function(x) unlist(strsplit(x,"_"))[2]))
+
+aquaspy_data_cols_desired_long = aquaspy_data_cols_desired_long_moisture
+aquaspy_data_cols_desired_long$"Soil_Temp" = aquaspy_data_cols_desired_long_temp$Soil_Temp
+
+# Moisture
 cropx_data_cols_desired = cropx_data[,c(1:4,10:12)]
-cropx_data_cols_desired_long = cropx_data_cols_desired%>%pivot_longer(cols=2:4, names_to="Depth", values_to="Moisture")
-cropx_data_cols_desired_long$Sensor = "CropX"
-cropx_data_cols_desired_long$Depth = as.numeric(sapply(cropx_data_cols_desired_long$Depth, function(x) unlist(strsplit(x,"_"))[2]))
+cropx_data_cols_desired_long_moisture = cropx_data_cols_desired%>%pivot_longer(cols=2:4, names_to="Depth", values_to="Moisture")
+cropx_data_cols_desired_long_moisture$Sensor = "CropX"
+cropx_data_cols_desired_long_moisture$Depth = as.numeric(sapply(cropx_data_cols_desired_long_moisture$Depth, function(x) unlist(strsplit(x,"_"))[2]))
 
+# Temp
+cropx_data$Temp_26 =  NA
+cropx_data_cols_desired = cropx_data[,c(1,5:6,13, 10:12)]
+cropx_data_cols_desired_long_temp = cropx_data_cols_desired%>%pivot_longer(cols=2:4, names_to="Depth", values_to="Soil_Temp")
+cropx_data_cols_desired_long_temp$Sensor = "CropX"
+cropx_data_cols_desired_long_temp$Depth = as.numeric(sapply(cropx_data_cols_desired_long_temp$Depth, function(x) unlist(strsplit(x,"_"))[2]))
+
+cropx_data_cols_desired_long = cropx_data_cols_desired_long_moisture
+cropx_data_cols_desired_long$"Soil_Temp" = cropx_data_cols_desired_long_temp$Soil_Temp
+
+
+
+# Moisture
 sentek_data_cols_desired = sentek_data[,c(1,4,6,8,10,12,14,16,18,20,22:24)]
-sentek_data_cols_desired_long = sentek_data_cols_desired%>%pivot_longer(cols=2:10, names_to="Depth", values_to="Moisture")
-sentek_data_cols_desired_long$Sensor = "Sentek"
-sentek_data_cols_desired_long$Depth = as.numeric(sapply(sentek_data_cols_desired_long$Depth, function(x) unlist(strsplit(x,"_"))[2]))/2.54
+sentek_data_cols_desired_long_moisture = sentek_data_cols_desired%>%pivot_longer(cols=2:10, names_to="Depth", values_to="Moisture")
+sentek_data_cols_desired_long_moisture$Sensor = "Sentek"
+sentek_data_cols_desired_long_moisture$Depth = as.numeric(sapply(sentek_data_cols_desired_long_moisture$Depth, function(x) unlist(strsplit(x,"_"))[2]))/2.54
+
+# Temp
+sentek_data_cols_desired = sentek_data[,c(1,5,7,9,11,13,15,17,19,21,22:24)]
+sentek_data_cols_desired_long_temp = sentek_data_cols_desired%>%pivot_longer(cols=2:10, names_to="Depth", values_to="Soil_Temp")
+sentek_data_cols_desired_long_temp$Sensor = "Sentek"
+sentek_data_cols_desired_long_temp$Depth = as.numeric(sapply(sentek_data_cols_desired_long_temp$Depth, function(x) unlist(strsplit(x,"_"))[2]))/2.54
+
+sentek_data_cols_desired_long = sentek_data_cols_desired_long_moisture
+sentek_data_cols_desired_long$"Soil_Temp" = sentek_data_cols_desired_long_temp$Soil_Temp
+
 
 all_data_sensors_moisture = rbind(sentek_data_cols_desired_long, cropx_data_cols_desired_long, aquaspy_data_cols_desired_long)
 
@@ -304,17 +337,18 @@ weekly_merge2 = merge(weekly_merge1, irrigation_amounts_long, by=c("Team", "Date
 weekly = weekly_merge2[weekly_merge2$Summarization_level.x == "Weekly_Average",]
 initial = weekly_merge2[weekly_merge2$Summarization_level.x == "Initial",]
 initial$Inital_Moisture = initial$Moisture
+initial$Initial_Soil_Temp = initial$Soil_Temp
 
-initial = initial[,c("Team", "Date", "Depth", "Inital_Moisture", "Sensor")]
+initial = initial[,c("Team", "Date", "Depth", "Inital_Moisture", "Initial_Soil_Temp", "Sensor")]
 merge3 = merge(weekly, initial, by=c("Team", "Date", "Depth", "Sensor"), all.x=TRUE)
 
 
 all_sensor_weather_irrigation_data = merge3[,c("Team", "Depth", "Sensor", 
-                                               "Timestamp.x", "Summarization_level.x", "Moisture", "PRECIP",
-                                               "TEMP2MAVG","TEMP2MMIN", "TEMP2MMAX", "Amount", "Moisture")]
+                                               "Timestamp.x", "Summarization_level.x", "Moisture", "Soil_Temp", "PRECIP",
+                                               "TEMP2MAVG","TEMP2MMIN", "TEMP2MMAX", "Amount", "Inital_Moisture", "Initial_Soil_Temp")]
 colnames(all_sensor_weather_irrigation_data) = c("Team", "Depth", "Sensor", 
-                                               "Timestamp", "Summarization_level", "Moisture", "PRECIP",
-                                               "TEMP2MAVG","TEMP2MMIN", "TEMP2MMAX", "Irrigation_Amount", "Initial_Moisture")
+                                               "Timestamp", "Summarization_level", "Moisture", "Soil_Temp", "PRECIP",
+                                               "TEMP2MAVG","TEMP2MMIN", "TEMP2MMAX", "Irrigation_Amount", "Inital_Moisture", "Initial_Soil_Temp")
 all_sensor_weather_irrigation_data$Date = format(all_sensor_weather_irrigation_data$Timestamp, "%m/%d/%Y")
 
 write.csv(all_sensor_weather_irrigation_data, file="all_sensor_weather_irrigation_data.csv")
