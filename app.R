@@ -34,7 +34,7 @@ loginpage <- div(id = "loginpage", style = "width: 700px; max-width: 100%; margi
                      tags$h2("Welcome to your TAPS dashboard!", class = "text-center", style = "padding-top: 0;color:#333; font-weight:800;"),
                      tags$h4("Presented by Statflow", class = "text-center", style = "padding-top: 0;color:#333; font-weight:500;"),
                      br(),
-                     hr(style = "height:1px;border:none;color:#333;background-color:#333;"),
+                     hr(style = "height:2px;border:none;color:LightGray;background-color:LightGray;"),
                      br(),
                      tags$h2("LOG IN", class = "text-center", style = "padding-top: 0;color:#333; font-weight:600;"),
                      textInput("userName", placeholder="Username", label = tagList(icon("user"), "Username")),
