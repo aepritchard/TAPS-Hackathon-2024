@@ -336,19 +336,19 @@ weekly_merge2 = merge(weekly_merge1, irrigation_amounts_long, by=c("Team", "Date
 # Add initial moisture
 weekly = weekly_merge2[weekly_merge2$Summarization_level.x == "Weekly_Average",]
 initial = weekly_merge2[weekly_merge2$Summarization_level.x == "Initial",]
-initial$Inital_Moisture = initial$Moisture
+initial$Initial_Moisture = initial$Moisture
 initial$Initial_Soil_Temp = initial$Soil_Temp
 
-initial = initial[,c("Team", "Date", "Depth", "Inital_Moisture", "Initial_Soil_Temp", "Sensor")]
+initial = initial[,c("Team", "Date", "Depth", "Initial_Moisture", "Initial_Soil_Temp", "Sensor")]
 merge3 = merge(weekly, initial, by=c("Team", "Date", "Depth", "Sensor"), all.x=TRUE)
 
 
 all_sensor_weather_irrigation_data = merge3[,c("Team", "Depth", "Sensor", 
                                                "Timestamp.x", "Summarization_level.x", "Moisture", "Soil_Temp", "PRECIP",
-                                               "TEMP2MAVG","TEMP2MMIN", "TEMP2MMAX", "Amount", "Inital_Moisture", "Initial_Soil_Temp")]
+                                               "TEMP2MAVG","TEMP2MMIN", "TEMP2MMAX", "Amount", "Initial_Moisture", "Initial_Soil_Temp")]
 colnames(all_sensor_weather_irrigation_data) = c("Team", "Depth", "Sensor", 
                                                "Timestamp", "Summarization_level", "Moisture", "Soil_Temp", "PRECIP",
-                                               "TEMP2MAVG","TEMP2MMIN", "TEMP2MMAX", "Irrigation_Amount", "Inital_Moisture", "Initial_Soil_Temp")
+                                               "TEMP2MAVG","TEMP2MMIN", "TEMP2MMAX", "Irrigation_Amount", "Initial_Moisture", "Initial_Soil_Temp")
 all_sensor_weather_irrigation_data$Date = format(all_sensor_weather_irrigation_data$Timestamp, "%m/%d/%Y")
 
 write.csv(all_sensor_weather_irrigation_data, file="all_sensor_weather_irrigation_data.csv")
