@@ -21,7 +21,6 @@ all_data = read.csv(url, header=T, sep=",")
 
 all_data$Total_water = all_data$Irrigation_Amount + all_data$PRECIP # Total water = Irrigation + Precipitation
 all_data$Moisture = all_data$Moisture/100 # Convert from percentage to proportion
-all_data$Initial_Moisture = all_data$Inital_Moisture
 
 model_data = all_data[all_data$Summarization_level == "Weekly_Average", ]
 model_data = model_data[!is.na(model_data$Moisture),]
