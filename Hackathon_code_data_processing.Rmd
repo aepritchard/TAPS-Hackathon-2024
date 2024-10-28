@@ -220,6 +220,9 @@ mesonet_data = read.csv(mesonet_url, header=T, sep=",")
 
 colnames(mesonet_data)[1]="Timestamp"
 mesonet_data$Date = as.Date(mesonet_data$Timestamp, tryFormats="%m/%d/%Y")
+mesonet_data$TEMP2MAVG = mesonet_data$TEMP2MAVG*9/5+32
+mesonet_data$TEMP2MMIN = mesonet_data$TEMP2MMIN*9/5+32
+mesonet_data$TEMP2MMAX = mesonet_data$TEMP2MMAX*9/5+32
 mesonet_data$Timestamp = as.POSIXct(mesonet_data$Date)
 mesonet_data$Summarization_level = "Daily_Average"
 
@@ -274,6 +277,7 @@ aquaspy_data_cols_desired_long_temp$Depth = as.numeric(sapply(aquaspy_data_cols_
 
 aquaspy_data_cols_desired_long = aquaspy_data_cols_desired_long_moisture
 aquaspy_data_cols_desired_long$"Soil_Temp" = aquaspy_data_cols_desired_long_temp$Soil_Temp
+aquaspy_data_cols_desired_long$Soil_Temp = (aquaspy_data_cols_desired_long$Soil_Temp)*9/5+32
 
 # Moisture
 cropx_data_cols_desired = cropx_data[,c(1:4,10:12)]
@@ -307,6 +311,7 @@ sentek_data_cols_desired_long_temp$Depth = as.numeric(sapply(sentek_data_cols_de
 
 sentek_data_cols_desired_long = sentek_data_cols_desired_long_moisture
 sentek_data_cols_desired_long$"Soil_Temp" = sentek_data_cols_desired_long_temp$Soil_Temp
+sentek_data_cols_desired_long$Soil_Temp = (sentek_data_cols_desired_long$Soil_Temp)*9/5+32
 
 
 all_data_sensors_moisture = rbind(sentek_data_cols_desired_long, cropx_data_cols_desired_long, aquaspy_data_cols_desired_long)
