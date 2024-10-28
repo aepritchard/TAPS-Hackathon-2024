@@ -21,8 +21,9 @@ all_data = read.csv(url, header=T, sep=",")
 
 all_data$Total_water = all_data$Irrigation_Amount + all_data$PRECIP # Total water = Irrigation + Precipitation
 all_data$Moisture = all_data$Moisture/100 # Convert from percentage to proportion
+all_data$Initial_Moisture = all_data$Inital_Moisture
 
-model_data = all_data[all_data$Summarization_level == "Weekly_Average",c("Depth", "Sensor", "Moisture", "TEMP2MAVG", "Initial_Moisture", "Total_water")]
+model_data = all_data[all_data$Summarization_level == "Weekly_Average", ]
 model_data = model_data[!is.na(model_data$Moisture),]
 model_data = model_data[!is.na(model_data$Initial_Moisture),]
 model_data$Total_water_ln = log(model_data$Total_water+1)
@@ -36,9 +37,14 @@ summary(water_predictor)
 ```
 ```{r}
 #moisture_predictor = lm(Moisture ~ Depth*Sensor*Total_water*TEMP2MAVG*Initial_Moisture, data=model_data)
-moisture_predictor = gam(Moisture ~ Depth + Sensor + Total_water + TEMP2MAVG + Initial_Moisture, data=model_data, family=betar())
+moisture_predictor = gam(Moisture ~ Depth + Sensor + poly(PRECIP,8) + poly(Irrigation_Amount,7) + TEMP2MAVG + Initial_Moisture, data=model_data, family=betar())
 summary(moisture_predictor)
 ```
+```{r}
+temp_predictor = gam(Soil_Temp ~ Depth + Sensor + poly(PRECIP,8) + poly(Irrigation_Amount,7) + poly(TEMP2MAVG,7) + Initial_Soil_Temp, data=model_data, )
+summary(temp_predictor)
+```
+
 # Build prediction
 ```{r}
 # User inputs
@@ -47,43 +53,52 @@ depth = runif(1, range(model_data$Depth)[1], range(model_data$Depth)[2])
 sensor = "Sentek"
 TEMP2MAVG = runif(1, range(model_data$TEMP2MAVG)[1], range(model_data$TEMP2MAVG)[2])
 initial_moisture = runif(1, range(model_data$Initial_Moisture, na.rm=T)[1], range(model_data$Initial_Moisture, na.rm=T)[2])
+initial_soil_temp = runif(1, range(model_data$Initial_Soil_Temp, na.rm=T)[1], range(model_data$Initial_Soil_Temp, na.rm=T)[2])
 
 # Define ranges of moisture and total_water
 moisture = seq(0,1,0.01)
-total_water = seq(0,10,0.01)
+PRECIP = seq(0,10,0.01)
+Irrigation_Amount = 0.25
+temps = seq(20,25,0.01)
 
 # Put user inputs into dataframe
-moisture_predictors = data.frame(Depth=depth, Sensor=sensor, TEMP2MAVG = TEMP2MAVG, Initial_Moisture=initial_moisture, Total_water = total_water)
-water_predictors = data.frame(Depth=depth, Sensor=sensor, Moisture=moisture, TEMP2MAVG = TEMP2MAVG, Initial_Moisture=initial_moisture)
+moisture_predictors = data.frame(Depth=depth, Sensor=sensor, TEMP2MAVG = TEMP2MAVG, Initial_Moisture=initial_moisture, Irrigation_Amount = Irrigation_Amount, PRECIP=PRECIP)
+temp_predictors = data.frame(Depth=depth, Sensor=sensor, TEMP2MAVG = temps, Initial_Soil_Temp=initial_soil_temp, Irrigation_Amount = Irrigation_Amount, PRECIP=1)
+#water_predictors = data.frame(Depth=depth, Sensor=sensor, Moisture=moisture, TEMP2MAVG = TEMP2MAVG, Initial_Moisture=initial_moisture)
 
 # Get predictions
-water_prediction = predict(water_predictor, newdata=water_predictors, type="response", se.fit=TRUE)
+#water_prediction = predict(water_predictor, newdata=water_predictors, type="response", se.fit=TRUE)
 moisture_prediction = predict(moisture_predictor, newdata=moisture_predictors, type="response", se.fit=TRUE)
+soil_temp_prediction = predict(temp_predictor, newdata=temp_predictors, type="response", se.fit=TRUE)
 
 # Combine data
-water_data = cbind(water_prediction, water_predictors)
+#water_data = cbind(water_prediction, water_predictors)
 moist_data = cbind(moisture_prediction, moisture_predictors)
+temp_data = cbind(soil_temp_prediction, temp_predictors)
 
 ```
 
 ```{r}
 # Plot water_data
+
 ggplot() +
-  geom_line(data = water_data, aes(x = moisture, y = fit), color = "blue", size = 1) +
-  geom_ribbon(data = water_data, aes(x = moisture, 
+  geom_line(data = moist_data, aes(x = PRECIP, y = fit), color = "blue", size = 1) +
+  geom_ribbon(data = moist_data, aes(x = PRECIP, 
                                 ymin = fit - 1.96 * se.fit, 
                                 ymax = fit + 1.96 * se.fit), alpha = 0.3) +
-  labs(title = "Title",  x = "Soil Moisture", y = "Total Water Needed") +
+  labs(title = "Title",  x = "Precipitaiton Amount ", y = "Soil Moisture") + ylim(0.3,0.5) +
   theme_minimal()
 ```
 ```{r}
 # Plot water_data
+
 ggplot() +
-  geom_line(data = moist_data, aes(x = total_water, y = fit), color = "blue", size = 1) +
-  geom_ribbon(data = moist_data, aes(x = total_water, 
+  geom_line(data = temp_data, aes(x = TEMP2MAVG, y = fit), color = "blue", size = 1) +
+  geom_ribbon(data = temp_data, aes(x = TEMP2MAVG, 
                                 ymin = fit - 1.96 * se.fit, 
                                 ymax = fit + 1.96 * se.fit), alpha = 0.3) +
-  labs(title = "Title",  x = "Total Water", y = "Soil Moisture") +
+  labs(title = "Title",  x = "Average Daily Temperature", y = "Soil Temperature") +
   theme_minimal()
 ```
+
 
