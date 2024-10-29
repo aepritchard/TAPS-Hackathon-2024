@@ -29,10 +29,10 @@ theme <- fresh::create_theme(
 # merged_data$Date = as.Date(merged_data$Timestamp)
 # all_data_sensors_moisture$Date = as.Date(all_data_sensors_moisture$Timestamp)
 
-loginpage <- div(id = "loginpage", style = "width: 500px; max-width: 100%; margin: 0 auto; padding: 0;", class = "wrapper",
+loginpage <- div(id = "loginpage", style = "width: 500px; max-width: 100%; margin:0 auto; padding: 0;height: 85vh; display: flex; justify-content: center; align-items: center;", class = "wrapper",
                  wellPanel(
-                     tags$h2("Welcome to your TAPS dashboard!", class = "blink-purple", style = "padding-top: 0;color:#333; font-weight:800;text-align:center;border-radius: 5px;"),
-                     tags$h4("Presented by Statflow", class = "text-center", style = "padding-top: 0;color:#333; font-weight:500;"),
+                     tags$h2("Welcome to your TAPS dashboard!", class = "blink-purple", style = "padding-top: 0;color:#333; font-weight:900;text-align:center;border-radius: 5px;"),
+                     tags$h4("Presented by Statflow", class = "text-center", style = "padding-top: 0;color:#333; font-weight:600;"),
                      br(),
                      hr(style = "height:2px;border:none;color:LightGray;background-color:LightGray;"),
                      br(),
@@ -114,7 +114,8 @@ ui <- bs4DashPage(
         shinyjs::useShinyjs(), uiOutput("body"),img(src='TAPS.png',style= 'position:absolute; right:10px;bottom:10px;' , width = 200),
         
         tags$style(HTML(".content-wrapper {  background-image: url('Folder1.png'); background-size: auto 75%; background-repeat: no-repeat;  background-position: center; }
-                        .content-wrapper::before {content: '';position: absolute;top: 0px;right: 0px; bottom: 0px;left: 0px;background-color: rgba(255,255,255,0.90);}"))
+                        .content-wrapper::before {content: '';position: absolute;top: 0px;right: 0px; bottom: 0px;left: 0px;background-color: rgba(255,255,255,0.95);}
+                        "))
     ), 
     # End Body
     
