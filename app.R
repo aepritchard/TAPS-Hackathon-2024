@@ -196,7 +196,7 @@ credentials = data.frame(
 ui <- bs4DashPage(
   # Set theme
   freshTheme = theme,
-  help = F,
+  help = NULL,
   
   # Header
   header = bs4DashNavbar(
